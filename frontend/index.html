@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chatbot API Tester</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <h1>Chatbot API Tester</h1>
+        <p class="muted">Login with credentials and chat directly. Session is created automatically on first message.</p>
+
+        <div class="grid">
+          <label>
+            Tenant ID
+            <input id="tenantId" value="tnt_demo" />
+          </label>
+          <label>
+            Email
+            <input id="email" value="john@test.local" />
+          </label>
+        </div>
+
+        <label>
+          Password
+          <input id="password" type="password" value="User@123" />
+        </label>
+
+        <div class="toolbar profile-toolbar">
+          <button type="button" class="secondary" data-profile="admin">Use Admin</button>
+          <button type="button" class="secondary" data-profile="user2">Use User John</button>
+          <button type="button" class="secondary" data-profile="user3">Use User Jane</button>
+        </div>
+
+        <p class="muted small-note">Admin: admin@test.local / Admin@123, User: john@test.local / User@123</p>
+
+        <div class="toolbar">
+          <button id="loginBtn">Login</button>
+          <button id="logoutBtn" class="secondary" type="button">Logout</button>
+          <code id="sessionView">status: not logged in</code>
+        </div>
+      </section>
+
+      <section class="panel chat-panel">
+        <div id="errorBanner" class="error-banner" hidden></div>
+        <div class="toolbar mode-toolbar">
+          <label class="compact-field">
+            Mode
+            <select id="modeSelect">
+              <option value="chat">V1 Chat</option>
+              <option value="research">V2 Research</option>
+            </select>
+          </label>
+          <label class="check-field">
+            <input id="verboseToggle" type="checkbox" />
+            Verbose
+          </label>
+          <label class="compact-field source-field">
+            V2 Source URL
+            <input id="sourceUrl" value="https://www.investopedia.com/terms/b/budget.asp" />
+          </label>
+        </div>
+        <section id="tuningPanel" class="tuning-panel" hidden>
+          <h3>Runtime Tuning (Admin)</h3>
+          <div class="grid tuning-grid">
+            <label>
+              Response Style
+              <select id="tuneResponseStyle">
+                <option value="concise">concise</option>
+                <option value="detailed">detailed</option>
+              </select>
+            </label>
+            <label>
+              Max Recommendations
+              <input id="tuneMaxRecs" type="number" min="1" max="5" value="3" />
+            </label>
+            <label class="check-field">
+              <input id="tuneShowVerdict" type="checkbox" checked />
+              Show Verdict
+            </label>
+            <label class="check-field">
+              <input id="tuneV2Enabled" type="checkbox" />
+              V2 Enabled (tenant override)
+            </label>
+            <label>
+              V2 Provider
+              <select id="tuneV2Provider">
+                <option value="">inherit global</option>
+                <option value="skeleton">skeleton</option>
+                <option value="external">external</option>
+              </select>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button type="button" id="loadSettingsBtn" class="secondary">Load Settings</button>
+            <button type="button" id="saveSettingsBtn">Save Settings</button>
+          </div>
+        </section>
+        <div id="messages" class="messages">
+          <article class="bubble assistant">Assistant ready. Login and send a message. Use mode switch for V2 research.</article>
+        </div>
+        <form id="chatForm" class="chat-form">
+          <textarea id="messageInput" rows="3" placeholder="Type your message, e.g. gve my acnt overveiw and hw to do bttr"></textarea>
+          <div class="toolbar">
+            <button type="submit">Send</button>
+            <button type="button" id="sendSampleBtn" class="secondary">Send Typo Sample</button>
+            <button type="button" id="sendAdminSampleBtn" class="secondary">Send Admin Sample</button>
+            <button type="button" id="sendResearchSampleBtn" class="secondary">Send V2 Sample</button>
+          </div>
+        </form>
+        <pre id="meta" class="meta"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+  </html>
