@@ -21,6 +21,22 @@
         }
       }
     },
+    "/chatbot": {
+      "get": {
+        "summary": "Chatbot Frontend",
+        "operationId": "chatbot_frontend_chatbot_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -391,6 +407,288 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Research V2 Research Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/settings": {
+      "get": {
+        "summary": "Get Tenant Runtime Settings",
+        "operationId": "get_tenant_runtime_settings_v1_admin_settings_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantRuntimeSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Patch Tenant Runtime Settings",
+        "operationId": "patch_tenant_runtime_settings_v1_admin_settings_patch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantRuntimeSettingsPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantRuntimeSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/website/index": {
+      "post": {
+        "summary": "Index Website Content",
+        "operationId": "index_website_content_v1_admin_website_index_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteIndexRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteIndexResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Website Index Stats",
+        "operationId": "get_website_index_stats_v1_admin_website_index_get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteIndexResponse"
                 }
               }
             }
@@ -798,6 +1096,138 @@
         }
       }
     },
+    "/v1/website/presets": {
+      "get": {
+        "summary": "Website Presets",
+        "operationId": "website_presets_v1_website_presets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WebsitePreset"
+                  },
+                  "type": "array",
+                  "title": "Response Website Presets V1 Website Presets Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/domain/classify": {
+      "post": {
+        "summary": "Classify Website Domain",
+        "operationId": "classify_website_domain_v1_domain_classify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DomainClassifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainClassifyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/website/integrate": {
+      "post": {
+        "summary": "Auto Integrate Website",
+        "operationId": "auto_integrate_website_v1_admin_website_integrate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "access_token",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Access Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteAutoIntegrateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteAutoIntegrateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/usage": {
       "get": {
         "summary": "Usage",
@@ -1101,6 +1531,123 @@
         ],
         "title": "ChatRequest"
       },
+      "DomainClassifyRequest": {
+        "properties": {
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          },
+          "domain_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Hint"
+          },
+          "site_metadata": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Metadata"
+          },
+          "navigation_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Navigation Context"
+          },
+          "product_service_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Service Context"
+          },
+          "rag_snippets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rag Snippets"
+          }
+        },
+        "type": "object",
+        "title": "DomainClassifyRequest"
+      },
+      "DomainClassifyResponse": {
+        "properties": {
+          "primary_domain": {
+            "type": "string",
+            "title": "Primary Domain"
+          },
+          "secondary_domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Domain"
+          },
+          "intent_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Intent Capabilities"
+          },
+          "allowed_behaviors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Behaviors"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "primary_domain"
+        ],
+        "title": "DomainClassifyResponse"
+      },
       "ExternalSource": {
         "properties": {
           "url": {
@@ -1259,6 +1806,17 @@
             ],
             "title": "User Id"
           },
+          "user_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Role"
+          },
           "query": {
             "type": "string",
             "maxLength": 500,
@@ -1283,6 +1841,112 @@
             "type": "boolean",
             "title": "Verbose",
             "default": false
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          },
+          "allowed_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Domains"
+          },
+          "domain_type_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Type Hint"
+          },
+          "domain_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Type"
+          },
+          "rag_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rag Context"
+          },
+          "site_metadata": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Metadata"
+          },
+          "navigation_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Navigation Context"
+          },
+          "current_page": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Page"
+          },
+          "current_page_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Page Context"
+          },
+          "product_service_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Service Context"
           }
         },
         "type": "object",
@@ -1365,6 +2029,252 @@
           "channel"
         ],
         "title": "SessionResponse"
+      },
+      "TenantRuntimeSettings": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "response_style": {
+            "type": "string",
+            "enum": [
+              "concise",
+              "detailed"
+            ],
+            "title": "Response Style",
+            "default": "concise"
+          },
+          "max_recommendations": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Max Recommendations",
+            "default": 3
+          },
+          "show_verdict": {
+            "type": "boolean",
+            "title": "Show Verdict",
+            "default": true
+          },
+          "v2_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "V2 Enabled"
+          },
+          "v2_provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "skeleton",
+                  "external"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "V2 Provider"
+          },
+          "website_preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Preset Id"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          },
+          "source_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Urls"
+          },
+          "allowed_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Domains"
+          },
+          "domain_type_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Type Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id"
+        ],
+        "title": "TenantRuntimeSettings"
+      },
+      "TenantRuntimeSettingsPatch": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "response_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "concise",
+                  "detailed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Style"
+          },
+          "max_recommendations": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Recommendations"
+          },
+          "show_verdict": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show Verdict"
+          },
+          "v2_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "V2 Enabled"
+          },
+          "v2_provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "skeleton",
+                  "external"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "V2 Provider"
+          },
+          "website_preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Preset Id"
+          },
+          "website_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website Url"
+          },
+          "source_urls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Urls"
+          },
+          "allowed_domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Domains"
+          },
+          "domain_type_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Type Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id"
+        ],
+        "title": "TenantRuntimeSettingsPatch"
       },
       "ToolDefinition": {
         "properties": {
@@ -1530,6 +2440,258 @@
           "secret"
         ],
         "title": "WebhookRegistration"
+      },
+      "WebsiteAutoIntegrateRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "website_url": {
+            "type": "string",
+            "title": "Website Url"
+          },
+          "max_pages": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Max Pages",
+            "default": 8
+          },
+          "max_depth": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Max Depth",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "website_url"
+        ],
+        "title": "WebsiteAutoIntegrateRequest"
+      },
+      "WebsiteAutoIntegrateResponse": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "website_url": {
+            "type": "string",
+            "title": "Website Url"
+          },
+          "primary_domain": {
+            "type": "string",
+            "title": "Primary Domain"
+          },
+          "secondary_domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Domain"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id"
+          },
+          "pages_indexed": {
+            "type": "integer",
+            "title": "Pages Indexed"
+          },
+          "chunks_indexed": {
+            "type": "integer",
+            "title": "Chunks Indexed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "website_url",
+          "primary_domain",
+          "pages_indexed",
+          "chunks_indexed"
+        ],
+        "title": "WebsiteAutoIntegrateResponse"
+      },
+      "WebsiteIndexRequest": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "website_url": {
+            "type": "string",
+            "title": "Website Url"
+          },
+          "allowed_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Domains"
+          },
+          "max_pages": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Max Pages",
+            "default": 8
+          },
+          "max_depth": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Max Depth",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "website_url"
+        ],
+        "title": "WebsiteIndexRequest"
+      },
+      "WebsiteIndexResponse": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id"
+          },
+          "pages_indexed": {
+            "type": "integer",
+            "title": "Pages Indexed"
+          },
+          "chunks_indexed": {
+            "type": "integer",
+            "title": "Chunks Indexed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id",
+          "pages_indexed",
+          "chunks_indexed"
+        ],
+        "title": "WebsiteIndexResponse"
+      },
+      "WebsitePreset": {
+        "properties": {
+          "preset_id": {
+            "type": "string",
+            "title": "Preset Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "website_url": {
+            "type": "string",
+            "title": "Website Url"
+          },
+          "source_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Urls"
+          },
+          "allowed_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Domains"
+          },
+          "domain_type_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Type Hint"
+          },
+          "site_metadata": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Metadata"
+          },
+          "navigation_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Navigation Context"
+          },
+          "product_service_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Service Context"
+          },
+          "rag_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rag Context"
+          },
+          "opensource_repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opensource Repo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preset_id",
+          "label",
+          "website_url"
+        ],
+        "title": "WebsitePreset"
       }
     }
   }

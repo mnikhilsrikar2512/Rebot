@@ -96,6 +96,11 @@ class TenantSettingsService:
                     "show_verdict": updated.show_verdict,
                     "v2_enabled": updated.v2_enabled,
                     "v2_provider": updated.v2_provider,
+                    "website_preset_id": updated.website_preset_id,
+                    "website_url": updated.website_url,
+                    "source_urls": updated.source_urls,
+                    "allowed_domains": updated.allowed_domains,
+                    "domain_type_hint": updated.domain_type_hint,
                 }
             )
             with self._engine.begin() as conn:

@@ -11,6 +11,7 @@ from chatbot_api.services.rate_limiter import rate_limiter
 from chatbot_api.services.webhook_runtime import webhook_runtime
 from chatbot_api.services.external_research import _SourceResult, external_research_service
 from chatbot_api.services.tenant_settings import tenant_settings_service
+from chatbot_api.services.website_rag import website_rag_service
 
 client = TestClient(app)
 
@@ -728,3 +729,104 @@ def test_non_admin_cannot_patch_runtime_settings() -> None:
     )
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+def test_v2_research_returns_structured_improvements_minimum_three() -> None:
+    original_allowlist = settings.external_research_allowlist
+    original_enabled = settings.external_research_enabled
+    original_fetch = external_research_service._fetch_source
+    original_v2_enabled = settings.enable_v2
+    original_v2_provider = settings.v2_research_provider
+
+    def fake_fetch(self, url, query_terms):
+        return _SourceResult(
+            url=url,
+            title="Finance Pattern Guide",
+            text="Use contextual nudges and weekly review loops.",
+            relevance=0.8,
+        )
+
+    settings.external_research_enabled = True
+    settings.external_research_allowlist = "example.com"
+    settings.enable_v2 = True
+    settings.v2_research_provider = "external"
+    external_research_service._fetch_source = MethodType(fake_fetch, external_research_service)
+
+    try:
+        headers = auth_header("tnt_demo", "usr_alex")
+        response = client.post(
+            "/v2/research",
+            headers=headers,
+            json={
+                "tenant_id": "tnt_demo",
+                "user_id": "usr_alex",
+                "query": "how can i improve cash flow",
+                "sources": [{"url": "https://example.com/guide"}],
+                "rag_context": "Current website page shows user monthly spending and budget summary widgets.",
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["intent"] in {"improvement", "research", "recommendation"}
+        assert payload["source_priority"] == "primary_plus_secondary"
+        assert isinstance(payload.get("improvements"), list)
+        assert len(payload["improvements"]) >= 3
+        first = payload["improvements"][0]
+        for key in [
+            "area",
+            "observation",
+            "why_it_matters",
+            "industry_insight",
+            "recommendation",
+            "expected_impact",
+            "priority",
+        ]:
+            assert key in first
+    finally:
+        settings.external_research_allowlist = original_allowlist
+        settings.external_research_enabled = original_enabled
+        settings.enable_v2 = original_v2_enabled
+        settings.v2_research_provider = original_v2_provider
+        external_research_service._fetch_source = original_fetch
+
+
+def test_admin_can_index_website_content() -> None:
+    admin_headers = auth_header_with_role("tnt_demo", "usr_admin", "admin")
+    original_fetch = website_rag_service._fetch_html
+
+    def fake_fetch(url: str, timeout: float = 8.0) -> str:
+        return """
+        <html><head><title>Finance Home</title></head>
+        <body>
+          <a href='/budget'>Budget</a>
+          <p>Monthly cash flow dashboard with budget widgets and savings nudges.</p>
+        </body></html>
+        """
+
+    website_rag_service._fetch_html = fake_fetch  # type: ignore[method-assign]
+    try:
+        response = client.post(
+            "/v1/admin/website/index",
+            headers=admin_headers,
+            json={
+                "tenant_id": "tnt_demo",
+                "website_url": "https://example.com",
+                "max_pages": 2,
+                "max_depth": 1,
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["pages_indexed"] >= 1
+        assert payload["chunks_indexed"] >= 1
+
+        stats = client.get(
+            "/v1/admin/website/index",
+            headers=admin_headers,
+            params={"tenant_id": "tnt_demo"},
+        )
+        assert stats.status_code == 200
+        assert stats.json()["chunks_indexed"] >= 1
+    finally:
+        website_rag_service._fetch_html = original_fetch  # type: ignore[method-assign]
+        website_rag_service.clear_tenant("tnt_demo")

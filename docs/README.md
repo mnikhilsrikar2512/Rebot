@@ -13,13 +13,8 @@ Deployment mode: open-source and self-hosted only (no paid external model APIs).
 3. `api-reference.md` - endpoint contracts, request/response examples, and integration flow.
 4. `operations-runbook.md` - reliability, security, observability, release, and SLO guidance.
 5. `personalization-test-cases.md` - QA/UAT cases for account-scoped and typo-tolerant behavior.
-6. `v1-go-live-checklist.md` - launch checklist with must-have blockers and progress.
-7. `v1-contract-freeze-checklist.md` - release contract freeze checks before tagging.
-8. `v1-release-runbook.md` - exact command sequence for staging, validation, and release tagging.
-9. `v2-contract-freeze-checklist.md` - V2 contract freeze checks and provider-switch validation.
-10. `v2-release-runbook.md` - staged V2 rollout steps, smoke tests, and rollback.
-11. `release-notes-template.md` - reusable release notes format.
-12. `CHANGELOG.md` - documentation change history by version/date.
+6. `release-notes-template.md` - reusable release notes format.
+7. `CHANGELOG.md` - documentation change history by version/date.
 
 ## Document Ownership (Suggested)
 

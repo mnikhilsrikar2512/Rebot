@@ -6,6 +6,7 @@ import re
 from sqlalchemy import create_engine, text
 
 from chatbot_api.config import settings
+from chatbot_api.services.tenant_settings import tenant_settings_service
 
 
 DOMAIN_KEYWORDS: dict[str, set[str]] = {
@@ -57,6 +58,44 @@ DOMAIN_KEYWORDS: dict[str, set[str]] = {
         "calorie",
         "meal",
     },
+    "fintech": {
+        "finance",
+        "banking",
+        "payment",
+        "wallet",
+        "budget",
+        "expense",
+        "savings",
+        "cashflow",
+        "loan",
+        "credit",
+    },
+    "e_commerce": {
+        "shop",
+        "store",
+        "product",
+        "catalog",
+        "cart",
+        "checkout",
+        "order",
+        "shipping",
+    },
+    "saas": {
+        "software",
+        "dashboard",
+        "integration",
+        "workflow",
+        "subscription",
+        "feature",
+    },
+}
+
+DOMAIN_ALIASES: dict[str, str] = {
+    "finance": "fintech",
+    "banking": "fintech",
+    "e-commerce": "e_commerce",
+    "ecommerce": "e_commerce",
+    "software": "saas",
 }
 
 GENERIC_WEBSITE_TERMS = {
@@ -80,6 +119,14 @@ GENERIC_WEBSITE_TERMS = {
     "monthly",
     "week",
     "weekly",
+    "next",
+    "step",
+    "steps",
+    "action",
+    "actions",
+    "plan",
+    "roadmap",
+    "priority",
 }
 
 
@@ -140,6 +187,10 @@ class DomainPolicy:
 
     @lru_cache(maxsize=256)
     def get_tenant_domain(self, tenant_id: str) -> str | None:
+        runtime_domain = tenant_settings_service.get_settings(tenant_id).domain_type_hint
+        if runtime_domain:
+            return str(runtime_domain).strip().lower().replace("-", "_").replace(" ", "_")
+
         if tenant_id in self._static_map:
             return self._static_map[tenant_id]
 
@@ -165,15 +216,18 @@ class DomainPolicy:
         if not domain:
             return True, None
 
+        normalized_domain = domain.strip().lower().replace("-", "_").replace(" ", "_")
+        normalized_domain = DOMAIN_ALIASES.get(normalized_domain, normalized_domain)
+
         words = _tokenize(normalized_query)
         if _matches_terms(words, GENERIC_WEBSITE_TERMS):
-            return True, domain
+            return True, normalized_domain
 
-        domain_terms = DOMAIN_KEYWORDS.get(domain, set())
+        domain_terms = DOMAIN_KEYWORDS.get(normalized_domain, set())
         if not domain_terms:
-            return True, domain
+            return True, normalized_domain
 
-        return _matches_terms(words, domain_terms), domain
+        return _matches_terms(words, domain_terms), normalized_domain
 
 
 domain_policy = DomainPolicy()

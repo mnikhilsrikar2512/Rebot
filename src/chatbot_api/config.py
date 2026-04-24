@@ -39,6 +39,13 @@ def _sqlserver_url_from_env() -> str | None:
 class Settings(BaseModel):
     app_name: str = "Universal Chatbot API"
     app_version: str = "0.1.0"
+    app_env: str = os.getenv("CHATBOT_ENV", "development").strip().lower()
+    strict_startup_validation: bool = _bool_env("CHATBOT_STRICT_STARTUP_VALIDATION", True)
+    cookie_secure: bool = _bool_env("CHATBOT_COOKIE_SECURE", False)
+    cookie_samesite: str = os.getenv("CHATBOT_COOKIE_SAMESITE", "lax").strip().lower()
+    cors_allowed_origins: str = os.getenv("CHATBOT_CORS_ALLOWED_ORIGINS", "")
+    trusted_hosts: str = os.getenv("CHATBOT_TRUSTED_HOSTS", "")
+    security_headers_enabled: bool = _bool_env("CHATBOT_SECURITY_HEADERS_ENABLED", True)
     default_model: str = "qwen2.5-7b-instruct"
     enable_strict_grounding_default: bool = True
     jwt_secret: str | None = os.getenv("CHATBOT_JWT_SECRET")
@@ -72,6 +79,8 @@ class Settings(BaseModel):
     v2_research_provider: str = os.getenv("CHATBOT_V2_RESEARCH_PROVIDER", "skeleton").strip().lower()
     tenant_domain_map: str = os.getenv("CHATBOT_TENANT_DOMAIN_MAP", "tnt_demo:finance")
     default_domain: str | None = os.getenv("CHATBOT_DEFAULT_DOMAIN")
+    website_presets_json: str = os.getenv("CHATBOT_WEBSITE_PRESETS_JSON", "")
+    website_preset_map: str = os.getenv("CHATBOT_WEBSITE_PRESET_MAP", "")
     tenant_isolation_enforced: bool = _bool_env("CHATBOT_TENANT_ISOLATION_ENFORCED", True)
     database_url: str | None = _sqlserver_url_from_env()
     db_fallback_to_mock: bool = _bool_env("CHATBOT_DB_FALLBACK_TO_MOCK", False)

@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -15,6 +16,8 @@ from fastapi.responses import PlainTextResponse
 from fastapi.responses import Response
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from chatbot_api.auth import (
     AuthContext,
@@ -28,6 +31,8 @@ from chatbot_api.config import settings
 from chatbot_api.schemas import (
     ChatRequest,
     ChatResponse,
+    DomainClassifyRequest,
+    DomainClassifyResponse,
     LoginRequest,
     LoginResponse,
     ResearchRequest,
@@ -35,6 +40,11 @@ from chatbot_api.schemas import (
     SessionResponse,
     TenantRuntimeSettings,
     TenantRuntimeSettingsPatch,
+    WebsiteAutoIntegrateRequest,
+    WebsiteAutoIntegrateResponse,
+    WebsitePreset,
+    WebsiteIndexRequest,
+    WebsiteIndexResponse,
     ToolInvokeRequest,
     ToolsRegisterRequest,
     WebhookRegistration,
@@ -44,6 +54,9 @@ from chatbot_api.services.metrics import metrics_store
 from chatbot_api.services.external_research import external_research_service
 from chatbot_api.services.v2_research import v2_research_service
 from chatbot_api.services.tenant_settings import tenant_settings_service
+from chatbot_api.services.website_rag import website_rag_service
+from chatbot_api.services.website_presets import list_website_presets, resolve_website_preset
+from chatbot_api.services.domain_detector import classify_domain
 from chatbot_api.services.auth_service import auth_service
 from chatbot_api.services.rate_limiter import rate_limiter
 from chatbot_api.services.session_store import session_store
@@ -59,6 +72,49 @@ FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
 TOOLS_BY_TENANT: dict[str, list[dict[str, Any]]] = {}
 WEBHOOKS_BY_TENANT: dict[str, list[dict[str, str]]] = {}
+
+
+def _csv_items(raw: str) -> list[str]:
+    return [item.strip() for item in (raw or "").split(",") if item.strip()]
+
+
+def _validate_startup_security() -> None:
+    if not settings.strict_startup_validation:
+        return
+
+    if settings.cookie_samesite not in {"lax", "strict", "none"}:
+        raise RuntimeError("Invalid CHATBOT_COOKIE_SAMESITE; expected one of: lax, strict, none")
+
+    if settings.app_env != "production":
+        return
+
+    if not settings.jwt_secret:
+        raise RuntimeError("CHATBOT_JWT_SECRET must be configured in production")
+    if settings.jwt_secret.strip().lower().startswith("replace-"):
+        raise RuntimeError("CHATBOT_JWT_SECRET looks like a placeholder in production")
+    if settings.allow_dev_token_auth:
+        raise RuntimeError("CHATBOT_ALLOW_DEV_TOKEN_AUTH must be false in production")
+    if settings.local_login_enabled:
+        raise RuntimeError("CHATBOT_LOCAL_LOGIN_ENABLED must be false in production")
+    if not settings.cookie_secure:
+        raise RuntimeError("CHATBOT_COOKIE_SECURE must be true in production")
+
+
+_validate_startup_security()
+
+allowed_origins = _csv_items(settings.cors_allowed_origins)
+if allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+        allow_headers=["*"],
+    )
+
+trusted_hosts = _csv_items(settings.trusted_hosts)
+if trusted_hosts:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
 
 def _error_payload(
@@ -194,6 +250,12 @@ async def logging_and_metrics_middleware(request: Request, call_next):
         response = await call_next(request)
         status_code = int(response.status_code)
         response.headers["X-Request-Id"] = request_id
+        if settings.security_headers_enabled:
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+            response.headers["Cache-Control"] = response.headers.get("Cache-Control", "no-store")
         return response
     finally:
         latency_ms = (time.perf_counter() - start) * 1000.0
@@ -288,6 +350,13 @@ def frontend() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
 
 
+@app.get("/chatbot")
+def chatbot_frontend() -> FileResponse:
+    if not FRONTEND_DIR.exists():
+        raise HTTPException(status_code=404, detail="Frontend not found")
+    return FileResponse(FRONTEND_DIR / "chatbot.html")
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -317,8 +386,8 @@ def login(request: LoginRequest, response: Response) -> LoginResponse:
         key="access_token",
         value=token,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite=settings.cookie_samesite,
+        secure=settings.cookie_secure,
         max_age=60 * 60 * 8,
     )
     return LoginResponse(
@@ -407,6 +476,7 @@ def chat(
     request.session_id = resolved_session_id
     request.tenant_id = tenant_id
     request.user_id = user_id
+    request.metadata = {**request.metadata, "auth_role": auth.role}
     try:
         response = orchestrator.run(request)
         webhook_runtime.dispatch(
@@ -443,6 +513,7 @@ def chat(
 @app.post("/v2/research", response_model=dict)
 def research(
     request: ResearchRequest,
+    raw_request: Request,
     auth: AuthContext = Depends(require_auth),
 ) -> dict[str, Any]:
     tenant_id, user_id = _resolve_scope(auth, request.tenant_id, request.user_id)
@@ -452,6 +523,55 @@ def research(
     _enforce_rate_limit(auth, "/v2/research")
     request.tenant_id = tenant_id
     request.user_id = user_id
+    request.user_role = auth.role
+
+    runtime_settings = tenant_settings_service.get_settings(tenant_id)
+    if not runtime_settings.website_url:
+        inferred_website_url = (request.website_url or "").strip() or None
+        if not inferred_website_url:
+            origin = (raw_request.headers.get("origin") or "").strip()
+            referer = (raw_request.headers.get("referer") or "").strip()
+            if origin.startswith("http://") or origin.startswith("https://"):
+                inferred_website_url = origin
+            elif referer:
+                parsed_referer = urlparse(referer)
+                if parsed_referer.scheme in {"http", "https"} and parsed_referer.netloc:
+                    inferred_website_url = f"{parsed_referer.scheme}://{parsed_referer.netloc}"
+
+        if inferred_website_url:
+            classification = classify_domain(
+                domain_hint=request.domain_type_hint,
+                website_url=inferred_website_url,
+                site_metadata=request.site_metadata,
+                navigation_context=request.navigation_context,
+                product_service_context=request.product_service_context,
+                rag_snippets=[],
+            )
+            preset = resolve_website_preset(
+                tenant_id=tenant_id,
+                preferred_domain=str(classification.get("primary_domain") or ""),
+                preferred_website_url=inferred_website_url,
+            )
+            inferred_host = (urlparse(inferred_website_url).hostname or "").lower()
+            allowed_domains = [inferred_host] if inferred_host else []
+            if preset:
+                allowed_domains = list(dict.fromkeys([*allowed_domains, *preset.allowed_domains]))
+
+            source_urls: list[str] = [inferred_website_url]
+            if preset:
+                source_urls = list(dict.fromkeys([*source_urls, *preset.source_urls]))
+
+            tenant_settings_service.update_settings(
+                TenantRuntimeSettingsPatch(
+                    tenant_id=tenant_id,
+                    website_preset_id=preset.preset_id if preset else None,
+                    website_url=inferred_website_url,
+                    source_urls=source_urls,
+                    allowed_domains=allowed_domains,
+                    domain_type_hint=str(classification.get("primary_domain") or "other"),
+                )
+            )
+
     provider = tenant_settings_service.resolve_v2_provider(tenant_id)
     if provider == "external":
         result = external_research_service.research(request)
@@ -480,6 +600,34 @@ def patch_tenant_runtime_settings(
     _enforce_rate_limit(auth, "/v1/admin/settings")
     _enforce_settings_admin(auth, request.tenant_id)
     return tenant_settings_service.update_settings(request)
+
+
+@app.post("/v1/admin/website/index", response_model=WebsiteIndexResponse)
+def index_website_content(
+    request: WebsiteIndexRequest,
+    auth: AuthContext = Depends(require_auth),
+) -> WebsiteIndexResponse:
+    _enforce_rate_limit(auth, "/v1/admin/website/index")
+    _enforce_settings_admin(auth, request.tenant_id)
+    stats = website_rag_service.ingest_site(
+        tenant_id=request.tenant_id,
+        website_url=request.website_url,
+        allowed_domains=request.allowed_domains,
+        max_pages=request.max_pages,
+        max_depth=request.max_depth,
+    )
+    return WebsiteIndexResponse(tenant_id=request.tenant_id, **stats)
+
+
+@app.get("/v1/admin/website/index", response_model=WebsiteIndexResponse)
+def get_website_index_stats(
+    tenant_id: str,
+    auth: AuthContext = Depends(require_auth),
+) -> WebsiteIndexResponse:
+    _enforce_rate_limit(auth, "/v1/admin/website/index")
+    _enforce_settings_admin(auth, tenant_id)
+    stats = website_rag_service.stats(tenant_id)
+    return WebsiteIndexResponse(tenant_id=tenant_id, **stats)
 
 
 @app.post("/v1/tools/register")
@@ -581,6 +729,87 @@ def capabilities() -> dict[str, Any]:
         "v2_enabled": settings.enable_v2,
         "v2_research_provider": settings.v2_research_provider,
     }
+
+
+@app.get("/v1/website/presets", response_model=list[WebsitePreset])
+def website_presets() -> list[WebsitePreset]:
+    return list_website_presets()
+
+
+@app.post("/v1/domain/classify", response_model=DomainClassifyResponse)
+def classify_website_domain(request: DomainClassifyRequest) -> DomainClassifyResponse:
+    result = classify_domain(
+        domain_hint=request.domain_hint,
+        website_url=request.website_url,
+        site_metadata=request.site_metadata,
+        navigation_context=request.navigation_context,
+        product_service_context=request.product_service_context,
+        rag_snippets=request.rag_snippets,
+    )
+    return DomainClassifyResponse(**result)
+
+
+@app.post("/v1/admin/website/integrate", response_model=WebsiteAutoIntegrateResponse)
+def auto_integrate_website(
+    request: WebsiteAutoIntegrateRequest,
+    auth: AuthContext = Depends(require_auth),
+) -> WebsiteAutoIntegrateResponse:
+    _enforce_rate_limit(auth, "/v1/admin/website/integrate")
+    _enforce_settings_admin(auth, request.tenant_id)
+
+    classification = classify_domain(
+        domain_hint=None,
+        website_url=request.website_url,
+        site_metadata=None,
+        navigation_context=None,
+        product_service_context=None,
+        rag_snippets=[],
+    )
+
+    preset = resolve_website_preset(
+        tenant_id=request.tenant_id,
+        preferred_domain=str(classification.get("primary_domain") or ""),
+        preferred_website_url=request.website_url,
+    )
+
+    host = (urlparse(request.website_url).hostname or "").lower()
+    allowed_domains = [host] if host else []
+    if preset:
+        allowed_domains = list(dict.fromkeys([*allowed_domains, *preset.allowed_domains]))
+
+    source_urls = [request.website_url]
+    if preset and preset.website_url and host and host in {item.lower() for item in preset.allowed_domains}:
+        source_urls = preset.source_urls or [request.website_url]
+
+    stats = website_rag_service.ingest_site(
+        tenant_id=request.tenant_id,
+        website_url=request.website_url,
+        allowed_domains=allowed_domains,
+        max_pages=request.max_pages,
+        max_depth=request.max_depth,
+    )
+
+    tenant_settings_service.update_settings(
+        TenantRuntimeSettingsPatch(
+            tenant_id=request.tenant_id,
+            v2_enabled=True,
+            website_preset_id=preset.preset_id if preset else None,
+            website_url=request.website_url,
+            source_urls=source_urls,
+            allowed_domains=allowed_domains,
+            domain_type_hint=str(classification.get("primary_domain") or "other"),
+        )
+    )
+
+    return WebsiteAutoIntegrateResponse(
+        tenant_id=request.tenant_id,
+        website_url=request.website_url,
+        primary_domain=str(classification.get("primary_domain") or "other"),
+        secondary_domain=(str(classification.get("secondary_domain")) if classification.get("secondary_domain") else None),
+        preset_id=preset.preset_id if preset else None,
+        pages_indexed=stats.get("pages_indexed", 0),
+        chunks_indexed=stats.get("chunks_indexed", 0),
+    )
 
 
 @app.get("/v1/usage")

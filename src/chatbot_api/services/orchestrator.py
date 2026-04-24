@@ -6,6 +6,7 @@ from chatbot_api.schemas import ChatRequest, ChatResponse, Citation, ResponseMes
 from chatbot_api.services.domain_policy import domain_policy
 from chatbot_api.services.memory import memory_store
 from chatbot_api.services.model_runtime import runtime
+from chatbot_api.services.response_formatter import OUT_OF_SCOPE_MESSAGE
 from chatbot_api.services.tenant_settings import tenant_settings_service
 
 
@@ -31,13 +32,15 @@ class ChatOrchestrator:
         normalized = normalize_user_text(request.message.content)
         admin_scope_terms = ["all users", "platform", "across users", "everyone", "team overview"]
         asks_admin_scope = any(term in normalized for term in admin_scope_terms)
+        website_terms = {"website", "site", "page", "ui", "ux", "navigation"}
+        improvement_terms = {"improve", "improvement", "optimize", "optimization", "audit", "better", "fix"}
+        normalized_tokens = set(normalized.split())
+        asks_website_improvement = bool(normalized_tokens.intersection(website_terms) and normalized_tokens.intersection(improvement_terms))
+        auth_role = str(request.metadata.get("auth_role") or "user").lower()
 
         in_scope, domain = domain_policy.is_query_in_scope(request.tenant_id, normalized)
         if not in_scope:
-            message = (
-                f"I can only help with {domain}-related questions for this website. "
-                "Ask something related to your account and this domain."
-            )
+            message = OUT_OF_SCOPE_MESSAGE
             return ChatResponse(
                 session_id=request.session_id,
                 message=ResponseMessage(content=message, citations=[]),
@@ -50,6 +53,25 @@ class ChatOrchestrator:
                     model=runtime.model_name,
                 ),
                 warnings=[f"domain_scope_blocked:{domain}"],
+            )
+
+        if asks_website_improvement and auth_role != "admin":
+            message = (
+                "I can help with using this website and completing tasks. "
+                "Website improvement and audit suggestions are available only to admin users."
+            )
+            return ChatResponse(
+                session_id=request.session_id,
+                message=ResponseMessage(content=message, citations=[]),
+                confidence_score=0.9,
+                needs_clarification=False,
+                missing_data_fields=[],
+                usage=Usage(
+                    input_tokens=max(1, len(request.message.content.split())),
+                    output_tokens=max(1, len(message.split())),
+                    model=runtime.model_name,
+                ),
+                warnings=["admin_only_website_improvement", f"adapter_mode:{self.mode}"],
             )
 
         memory_store.append(

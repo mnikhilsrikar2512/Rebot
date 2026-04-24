@@ -8,9 +8,27 @@
   </head>
   <body>
     <main class="shell">
+      <section class="panel hero-panel">
+        <div class="hero-head">
+          <h1>Chatbot Validation Console</h1>
+          <p class="muted">Guided workspace for auth, website context grounding, intent routing, and V1/V2 response validation.</p>
+        </div>
+        <div class="stepper" id="stepper">
+          <div class="step" id="stepAuth">1. Authenticate</div>
+          <div class="step" id="stepContext">2. Set Context</div>
+          <div class="step" id="stepRun">3. Run Scenarios</div>
+          <div class="step" id="stepReview">4. Review Output</div>
+        </div>
+      </section>
+
       <section class="panel">
-        <h1>Chatbot API Tester</h1>
-        <p class="muted">Login with credentials and chat directly. Session is created automatically on first message.</p>
+        <h2>Authentication</h2>
+        <p class="muted">Login once, then test user/admin-specific behavior. Session is created automatically on first message.</p>
+        <div class="status-strip" id="statusStrip">
+          <span class="chip" id="authChip">Auth: signed out</span>
+          <span class="chip" id="adapterChip">Adapter: unknown</span>
+          <span class="chip" id="v2Chip">V2: unknown</span>
+        </div>
 
         <div class="grid">
           <label>
@@ -44,6 +62,7 @@
       </section>
 
       <section class="panel chat-panel">
+        <h2>Conversation Lab</h2>
         <div id="errorBanner" class="error-banner" hidden></div>
         <div class="toolbar mode-toolbar">
           <label class="compact-field">
@@ -62,6 +81,16 @@
             <input id="sourceUrl" value="https://www.investopedia.com/terms/b/budget.asp" />
           </label>
         </div>
+        <p class="muted tiny-note" id="modeHint">Tip: Use V1 for account-grounded chat and V2 for structured research outputs.</p>
+
+        <div class="quick-prompts" id="quickPrompts">
+          <button type="button" class="ghost" data-prompt="What does this website help me do?">Informational</button>
+          <button type="button" class="ghost" data-prompt="What should I choose to improve my budget flow here?">Recommendation</button>
+          <button type="button" class="ghost" data-prompt="How can I improve this website for better budget planning?">Improvement</button>
+          <button type="button" class="ghost" data-prompt="Please audit this website budgeting journey.">Audit</button>
+          <button type="button" class="ghost" data-prompt="The budget page is not working for me. How do I fix it?">Troubleshoot</button>
+        </div>
+
         <section id="tuningPanel" class="tuning-panel" hidden>
           <h3>Runtime Tuning (Admin)</h3>
           <div class="grid tuning-grid">
@@ -97,7 +126,58 @@
             <button type="button" id="loadSettingsBtn" class="secondary">Load Settings</button>
             <button type="button" id="saveSettingsBtn">Save Settings</button>
           </div>
+          <hr class="divider" />
+          <h3>Website Context Lab</h3>
+          <div class="grid tuning-grid">
+            <label>
+              Website URL
+              <input id="labWebsiteUrl" value="https://finly.example.com" />
+            </label>
+            <label>
+              Allowed Domains (CSV)
+              <input id="labAllowedDomains" value="finly.example.com,docs.finly.example.com,example.com" />
+            </label>
+            <label>
+              Domain Type Hint
+              <input id="labDomainHint" value="fintech" />
+            </label>
+            <label>
+              Current Page
+              <input id="labCurrentPage" value="https://finly.example.com/dashboard" />
+            </label>
+            <label class="full-row">
+              RAG Context
+              <textarea id="labRagContext" rows="3">Users can review spending categories, monitor monthly budget utilization, and set savings goals.</textarea>
+            </label>
+          </div>
+          <div class="toolbar">
+            <button type="button" id="indexWebsiteBtn" class="secondary">Index Website</button>
+            <button type="button" id="runMatrixBtn">Run Scenario Matrix</button>
+          </div>
+          <div id="matrixTableWrap" class="matrix-wrap" hidden>
+            <table class="matrix-table" id="matrixTable">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Scenario</th>
+                  <th>Status</th>
+                  <th>Intent</th>
+                  <th>Mode</th>
+                  <th>Source</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody id="matrixTableBody"></tbody>
+            </table>
+          </div>
+          <pre id="matrixReport" class="meta" hidden></pre>
         </section>
+        <div class="toolbar utility-toolbar">
+          <button type="button" id="clearChatBtn" class="secondary">Clear Chat</button>
+          <button type="button" id="copyLastBtn" class="secondary">Copy Last Reply</button>
+          <button type="button" id="exportChatBtn" class="secondary">Export Transcript</button>
+          <span class="muted hint" id="shortcutHint">Enter to send, Shift+Enter for newline</span>
+        </div>
         <div id="messages" class="messages">
           <article class="bubble assistant">Assistant ready. Login and send a message. Use mode switch for V2 research.</article>
         </div>

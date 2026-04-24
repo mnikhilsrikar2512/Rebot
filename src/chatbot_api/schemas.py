@@ -150,10 +150,31 @@ class ExternalSource(BaseModel):
 class ResearchRequest(BaseModel):
     tenant_id: str | None = None
     user_id: str | None = None
+    user_role: str | None = None
     query: str = Field(min_length=3, max_length=500)
     sources: list[ExternalSource] = Field(default_factory=list)
     max_sources: int = Field(default=5, ge=1, le=10)
     verbose: bool = False
+    website_url: str | None = None
+    allowed_domains: list[str] = Field(default_factory=list)
+    domain_type_hint: str | None = None
+    domain_type: str | None = None
+    rag_context: str | None = None
+    site_metadata: str | None = None
+    navigation_context: str | None = None
+    current_page: str | None = None
+    current_page_context: str | None = None
+    product_service_context: str | None = None
+
+
+class ImprovementSuggestion(BaseModel):
+    area: str
+    observation: str
+    why_it_matters: str
+    recommendation: str
+    expected_impact: str
+    priority: Literal["high", "medium", "low"]
+    industry_insight: str | None = None
 
 
 class ResearchResponse(BaseModel):
@@ -161,8 +182,31 @@ class ResearchResponse(BaseModel):
     trace_id: str = Field(default_factory=lambda: f"trc_{uuid4().hex[:10]}")
     tenant_id: str
     user_id: str
+    intent: Literal[
+        "informational",
+        "recommendation",
+        "improvement",
+        "audit",
+        "troubleshooting",
+        "research",
+    ]
+    domain: str | None = None
+    context_note: str | None = None
+    source_priority: Literal["primary_only", "primary_plus_secondary"] = "primary_only"
+    response_mode: Literal[
+        "informational",
+        "recommendation",
+        "improvement",
+        "audit",
+        "troubleshooting",
+        "comparison",
+        "navigation_help",
+        "content_summarization",
+        "out_of_scope",
+    ] = "informational"
     summary: str
     recommendations: list[str] = Field(default_factory=list)
+    improvements: list[ImprovementSuggestion] = Field(default_factory=list)
     explanation: str | None = None
     confidence_score: float
     warnings: list[str] = Field(default_factory=list)
@@ -175,6 +219,11 @@ class TenantRuntimeSettings(BaseModel):
     show_verdict: bool = True
     v2_enabled: bool | None = None
     v2_provider: Literal["skeleton", "external"] | None = None
+    website_preset_id: str | None = None
+    website_url: str | None = None
+    source_urls: list[str] = Field(default_factory=list)
+    allowed_domains: list[str] = Field(default_factory=list)
+    domain_type_hint: str | None = None
 
 
 class TenantRuntimeSettingsPatch(BaseModel):
@@ -184,3 +233,70 @@ class TenantRuntimeSettingsPatch(BaseModel):
     show_verdict: bool | None = None
     v2_enabled: bool | None = None
     v2_provider: Literal["skeleton", "external"] | None = None
+    website_preset_id: str | None = None
+    website_url: str | None = None
+    source_urls: list[str] | None = None
+    allowed_domains: list[str] | None = None
+    domain_type_hint: str | None = None
+
+
+class WebsiteIndexRequest(BaseModel):
+    tenant_id: str
+    website_url: str
+    allowed_domains: list[str] = Field(default_factory=list)
+    max_pages: int = Field(default=8, ge=1, le=50)
+    max_depth: int = Field(default=1, ge=0, le=3)
+
+
+class WebsiteIndexResponse(BaseModel):
+    tenant_id: str
+    pages_indexed: int
+    chunks_indexed: int
+
+
+class WebsiteAutoIntegrateRequest(BaseModel):
+    tenant_id: str
+    website_url: str
+    max_pages: int = Field(default=8, ge=1, le=50)
+    max_depth: int = Field(default=1, ge=0, le=3)
+
+
+class WebsiteAutoIntegrateResponse(BaseModel):
+    tenant_id: str
+    website_url: str
+    primary_domain: str
+    secondary_domain: str | None = None
+    preset_id: str | None = None
+    pages_indexed: int
+    chunks_indexed: int
+
+
+class WebsitePreset(BaseModel):
+    preset_id: str
+    label: str
+    website_url: str
+    source_urls: list[str] = Field(default_factory=list)
+    allowed_domains: list[str] = Field(default_factory=list)
+    domain_type_hint: str | None = None
+    site_metadata: str | None = None
+    navigation_context: str | None = None
+    product_service_context: str | None = None
+    rag_context: str | None = None
+    opensource_repo: str | None = None
+
+
+class DomainClassifyRequest(BaseModel):
+    website_url: str | None = None
+    domain_hint: str | None = None
+    site_metadata: str | None = None
+    navigation_context: str | None = None
+    product_service_context: str | None = None
+    rag_snippets: list[str] = Field(default_factory=list)
+
+
+class DomainClassifyResponse(BaseModel):
+    primary_domain: str
+    secondary_domain: str | None = None
+    intent_capabilities: list[str] = Field(default_factory=list)
+    allowed_behaviors: list[str] = Field(default_factory=list)
+    note: str | None = None

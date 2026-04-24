@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chatbot</title>
+    <link rel="stylesheet" href="/assets/chatbot.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="panel auth-panel">
+        <h1>Website Chatbot</h1>
+        <p class="muted">Sign in and chat with your API in real time.</p>
+
+        <div id="status" class="status">Signed out</div>
+        <div id="error" class="error" hidden></div>
+
+        <div class="grid">
+          <label>
+            Tenant ID
+            <input id="tenantId" value="tnt_demo" />
+          </label>
+          <label>
+            Email
+            <input id="email" value="john@test.local" />
+          </label>
+        </div>
+
+        <label>
+          Password
+          <input id="password" type="password" value="User@123" />
+        </label>
+
+        <div class="row">
+          <button id="loginBtn" type="button">Login</button>
+          <button id="logoutBtn" type="button" class="secondary">Logout</button>
+          <button id="clearBtn" type="button" class="secondary">Clear Chat</button>
+        </div>
+      </section>
+
+      <section class="panel chat-panel">
+        <div class="chat-controls">
+          <label>
+            Mode
+            <select id="modeSelect">
+              <option value="chat">V1 Chat</option>
+              <option value="research">V2 Research</option>
+            </select>
+          </label>
+          <label id="presetWrap" class="is-hidden">
+            Website Preset
+            <select id="presetSelect">
+              <option value="custom">Custom (manual)</option>
+            </select>
+          </label>
+          <label id="streamWrap" class="inline-check">
+            <input id="streamToggle" type="checkbox" checked />
+            Stream V1 Replies
+          </label>
+          <label id="sourceWrap" class="is-hidden">
+            Primary Source URL
+            <input id="sourceUrl" placeholder="https://example.com/article" />
+          </label>
+          <label id="sourceListWrap" class="is-hidden full-width">
+            Additional Source URLs (one per line)
+            <textarea id="sourceUrls" rows="3" placeholder="https://example.com/page-1&#10;https://example.com/page-2"></textarea>
+          </label>
+        </div>
+        <p id="modeHint" class="mode-hint"></p>
+        <div id="messages" class="messages">
+          <article class="bubble assistant">Hello. Log in and ask me anything about your tenant data.</article>
+        </div>
+        <form id="composer" class="composer">
+          <textarea id="messageInput" rows="2" placeholder="Type your message..."></textarea>
+          <button id="sendBtn" type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <script type="module" src="/assets/chatbot.js"></script>
+  </body>
+  </html>

@@ -1,99 +1,197 @@
 # Universal Chatbot API
 
-FastAPI service for a tenant-aware chatbot with JWT auth, SQL Server-backed data access, tool/webhook runtime support, metrics, and a small browser frontend.
+A production-oriented, tenant-aware chatbot backend built with FastAPI. The service supports JWT authentication, account-scoped responses, SQL Server integration, configurable runtime behavior per tenant, and a browser-based tester for fast validation.
 
-## Highlights
+## Core Capabilities
 
-- `POST /v1/chat`, `POST /v1/sessions`, and auth endpoints for local development
-- SQL Server or mock adapter mode
-- Tenant and user scope enforcement
-- External research and v2 research endpoints
-- Prometheus-style metrics at `/metrics`
-- Browser frontend at `/`
+- Multi-tenant chat API with strict tenant/user scope enforcement
+- JWT-based authentication with configurable claim mapping
+- SQL Server adapter with mock fallback support for local development
+- V1 chat and V2 research flows with feature flags and provider switching
+- Per-tenant runtime tuning (response style, recommendation depth, V2 overrides)
+- Domain-aware guardrails and classification (12-domain taxonomy) for scoped responses
+- Website preset automation (predefined domains/sources) with tenant-level auto-resolution
+- Built-in rate limiting, metrics, and request traceability (`X-Request-Id`)
+
+## API Surface
+
+- `POST /v1/auth/login` and `POST /v1/auth/logout` (local/dev auth mode)
+- `POST /v1/sessions`, `GET /v1/sessions/{session_id}`
+- `POST /v1/chat`
+- `POST /v2/research`
+- `GET /v1/capabilities`
+- `GET /metrics`, `GET /v1/metrics`, `GET /v1/alerts`
+- `GET /v1/admin/settings`, `PATCH /v1/admin/settings` (tenant runtime tuning)
+- `POST /v1/admin/website/index`, `GET /v1/admin/website/index`
+- `POST /v1/admin/website/integrate` (instant website integration + domain auto-config)
+- `GET /v1/website/presets` (predefined website/domain presets)
+- `POST /v1/domain/classify` (domain detection + behavior capabilities)
 
 ## Repository Layout
 
 ```text
-src/chatbot_api/   API, auth, adapters, and services
-frontend/          Small web UI for manual testing
-scripts/           DB seeding, OpenAPI export, smoke checks
-tests/             API and contract regression tests
-docs/              Product, ops, and release runbooks
-openapi/           Exported OpenAPI specifications
+src/chatbot_api/   API, auth, adapters, services, runtime policies
+frontend/          Browser tester UI (V1 + V2 + admin runtime tuning)
+scripts/           DB seed, OpenAPI export/check, smoke scripts
+tests/             API, regression, and contract tests
+docs/              Product, operations, release, and service-model docs
+openapi/           Versioned OpenAPI snapshots
 ```
 
-## Quick Start
+## Quick Start (Local)
 
-1. Create and activate a virtual environment.
+1. Create and activate a virtual environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-2. Install dependencies.
+2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a local env file from the example.
+3. Prepare environment:
 
 ```bash
 cp .env.example .env
 ```
 
-4. Start the API.
+4. Start the API:
 
 ```bash
 PYTHONPATH=src uvicorn chatbot_api.main:app --reload
 ```
 
-5. Open the app.
+5. Open:
 
 - API docs: `http://127.0.0.1:8000/docs`
-- Frontend: `http://127.0.0.1:8000/`
+- Frontend tester: `http://127.0.0.1:8000/`
+- Frontend chatbot: `http://127.0.0.1:8000/chatbot`
 
-## Environment Variables
+## Instant Website Integration (No Manual Question-Time URL Setup)
 
-`src/chatbot_api/config.py` is the source of truth for configuration. The most important settings are:
+Use this once per tenant to configure website/domain context automatically:
 
-- `CHATBOT_JWT_SECRET`
-- `CHATBOT_SQLSERVER_HOST`, `CHATBOT_SQLSERVER_PORT`, `CHATBOT_SQLSERVER_USER`, `CHATBOT_SQLSERVER_PASSWORD`, `CHATBOT_SQLSERVER_DB`
-- `CHATBOT_ALLOW_DEV_TOKEN_AUTH`
-- `CHATBOT_LOCAL_LOGIN_ENABLED`
-- `CHATBOT_EXTERNAL_RESEARCH_ENABLED`
-- `CHATBOT_TENANT_DOMAIN_MAP`
-- `CHATBOT_DB_FALLBACK_TO_MOCK`
+```bash
+curl -X POST http://127.0.0.1:8000/v1/admin/website/integrate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin-token>" \
+  -d '{
+    "tenant_id": "tnt_demo",
+    "website_url": "https://your-website.com",
+    "max_pages": 8,
+    "max_depth": 1
+  }'
+```
 
-Use `.env.example` as the starting point for local development.
+What this does:
+
+- Classifies the website into a primary/secondary domain
+- Resolves a predefined preset (tenant map -> domain map -> default)
+- Indexes website content for retrieval grounding
+- Stores runtime website/domain settings for the tenant
+- Enables V2 responses without passing URLs in each user query
+
+For frontend integrations, this keeps setup minimal: integrate once per tenant and start sending user queries immediately.
+
+## Configuration
+
+`src/chatbot_api/config.py` is the source of truth for runtime configuration.
+
+Important settings groups:
+
+- Auth and JWT:
+  - `CHATBOT_JWT_SECRET`, `CHATBOT_JWT_ALGORITHM`
+  - `CHATBOT_JWT_CLAIM_TENANT_ID`, `CHATBOT_JWT_CLAIM_USER_ID`, `CHATBOT_JWT_CLAIM_ROLE`
+  - `CHATBOT_ALLOW_DEV_TOKEN_AUTH`, `CHATBOT_LOCAL_LOGIN_ENABLED`
+- Database:
+  - `CHATBOT_SQLSERVER_HOST`, `CHATBOT_SQLSERVER_PORT`, `CHATBOT_SQLSERVER_USER`, `CHATBOT_SQLSERVER_PASSWORD`, `CHATBOT_SQLSERVER_DB`
+  - `CHATBOT_DATABASE_URL`, `CHATBOT_DB_FALLBACK_TO_MOCK`
+- V2 controls:
+  - `CHATBOT_ENABLE_V2`
+  - `CHATBOT_V2_RESEARCH_PROVIDER` (`skeleton` or `external`)
+  - `CHATBOT_WEBSITE_PRESETS_JSON` (optional custom preset catalog)
+  - `CHATBOT_WEBSITE_PRESET_MAP` (tenant->preset mapping, e.g. `tnt_demo:domain_fintech`)
+- Security posture:
+  - `CHATBOT_ENV`
+  - `CHATBOT_STRICT_STARTUP_VALIDATION`
+  - `CHATBOT_COOKIE_SECURE`, `CHATBOT_COOKIE_SAMESITE`
+  - `CHATBOT_TRUSTED_HOSTS`, `CHATBOT_CORS_ALLOWED_ORIGINS`
+
+Use `.env.example` as the baseline for local development.
+
+## Built-in Domain Presets (Lean Production Set)
+
+Default preset catalog includes open-domain references for:
+
+1. `fintech`
+2. `e_commerce`
+3. `saas`
+4. `education`
+5. `healthcare`
+6. `real_estate`
+7. `travel_hospitality`
+8. `food_restaurant`
+9. `media_content`
+10. `social_community`
+11. `government_ngo`
+12. `other`
+
+The API uses these presets to deliver suggestion-style, website-grounded responses like improvement options, next steps, audits, and troubleshooting guidance.
+
+## Production Baseline Checklist
+
+At minimum, set the following before production deployment:
+
+- `CHATBOT_ENV=production`
+- `CHATBOT_JWT_SECRET=<strong secret from secret manager>`
+- `CHATBOT_ALLOW_DEV_TOKEN_AUTH=false`
+- `CHATBOT_LOCAL_LOGIN_ENABLED=false`
+- `CHATBOT_COOKIE_SECURE=true`
+- `CHATBOT_TRUSTED_HOSTS=<comma-separated allowed hosts>`
+- `CHATBOT_CORS_ALLOWED_ORIGINS=<comma-separated explicit origins>`
+
+With strict startup validation enabled, the app fails fast on unsafe production settings.
 
 ## Database Seeding
 
-If you want the SQL Server test data used by the repo, run:
+To load local SQL test data:
 
 ```bash
 PYTHONPATH=src python scripts/seed_test_db.py
 ```
 
+Default test users include admin and standard users under `tnt_demo`.
+
 ## Useful Scripts
 
-- `scripts/seed_test_db.py` seeds the local SQL Server test database
-- `scripts/generate_test_jwt.py` creates a signed test token
-- `scripts/export_openapi.py` exports the API schema
-- `scripts/check_openapi_contract.py` validates the OpenAPI contract
-- `scripts/smoke_test_v2.sh` exercises the v2 research flow
+- `scripts/seed_test_db.py` - seed SQL test data
+- `scripts/generate_test_jwt.py` - generate HS256 JWTs for local testing
+- `scripts/export_openapi.py` - export OpenAPI snapshot
+- `scripts/check_openapi_contract.py` - validate OpenAPI snapshot drift
+- `scripts/smoke_test_v2.sh` - smoke test V2 research endpoint
 
 ## Testing
+
+Run full suite:
 
 ```bash
 pytest
 ```
 
-The suite covers auth, chat flows, v2 research providers, and the OpenAPI contract.
+Run critical API/contract checks:
 
-## Notes
+```bash
+PYTHONPATH=src .venv/bin/pytest -q tests/test_api.py tests/test_regression_suite.py tests/test_v2_research_providers.py tests/test_openapi_contract.py
+```
 
-- Local login is enabled by default for developer workflows.
-- If SQL Server is configured, the adapter switches away from mock mode automatically.
-- The app returns an `X-Request-Id` header on API responses for traceability.
+## Documentation
+
+See `docs/README.md` for full documentation index, including:
+
+- API reference and architecture
+- Operations and release runbooks
+- Client service model and internal operations SOP
