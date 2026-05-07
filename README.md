@@ -72,6 +72,13 @@ PYTHONPATH=src uvicorn chatbot_api.main:app --reload
 - API root status: `http://127.0.0.1:8000/`
 - Frontend chatbot: `http://127.0.0.1:8000/chatbot`
 
+Frontend chatbot highlights:
+
+- Mode switcher for `Auto`, `V1 Chat`, and `V2 Research`
+- Quick-prompt chips for fast testing
+- Streaming support for V1 mode
+- Cleaner assistant rendering with duplicate-bullet cleanup
+
 ## Instant Website Integration (No Manual Question-Time URL Setup)
 
 Use this once per tenant to configure website/domain context automatically:

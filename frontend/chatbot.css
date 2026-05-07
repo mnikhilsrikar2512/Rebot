@@ -115,6 +115,26 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.quick-prompts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  background: #eef4ff;
+  color: #1b3f6e;
+  border: 1px solid #c8d8f2;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.chip:hover {
+  background: #e4eeff;
+}
+
 .chat-controls {
   display: flex;
   align-items: end;
@@ -188,6 +208,11 @@ button:disabled {
   align-self: flex-start;
   background: #eaf2ff;
   color: #17365f;
+}
+
+.bubble.assistant.typing {
+  color: #3b557c;
+  font-style: italic;
 }
 
 .composer {

@@ -27,6 +27,7 @@ const sourceUrlEl = document.getElementById("sourceUrl");
 const sourceListWrapEl = document.getElementById("sourceListWrap");
 const sourceUrlsEl = document.getElementById("sourceUrls");
 const modeHintEl = document.getElementById("modeHint");
+const quickPromptEls = Array.from(document.querySelectorAll(".chip[data-prompt]"));
 
 function parseSourceUrls(raw) {
   const seen = new Set();
@@ -141,6 +142,42 @@ function addBubble(role, content) {
   messagesEl.appendChild(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return el;
+}
+
+function cleanAssistantReply(text) {
+  const lines = String(text || "")
+    .split("\n")
+    .map((line) => line.trimEnd());
+
+  const deduped = [];
+  const seenBullets = new Set();
+  for (const line of lines) {
+    if (!line.trim()) {
+      if (deduped.length && deduped[deduped.length - 1] === "") continue;
+      deduped.push("");
+      continue;
+    }
+
+    if (line.startsWith("- ")) {
+      const key = line.slice(2).trim().toLowerCase();
+      if (seenBullets.has(key)) continue;
+      seenBullets.add(key);
+    }
+    deduped.push(line);
+  }
+
+  return deduped.join("\n").trim();
+}
+
+function renderAssistantReply(targetEl, text) {
+  const cleaned = cleanAssistantReply(text || "No response content.");
+  targetEl.className = "bubble assistant";
+  targetEl.textContent = cleaned || "No response content.";
+
+  const next = targetEl.nextElementSibling;
+  if (next && next.classList?.contains("expand-btn")) {
+    next.remove();
+  }
 }
 
 function buildResearchReply(data) {
@@ -423,41 +460,46 @@ composerEl.addEventListener("submit", async (event) => {
   showError("");
   addBubble("user", text);
   messageInputEl.value = "";
+  const typingBubble = addBubble("assistant typing", "Thinking...");
 
   try {
     setBusy(true);
     if (modeSelectEl.value === "research") {
       const data = await sendResearch(text);
       const reply = buildResearchReply(data);
-      addBubble("assistant", reply);
+      renderAssistantReply(typingBubble, reply);
       return;
     }
 
     if (modeSelectEl.value === "auto") {
       const response = await sendChat(text, true);
       const reply = response?.message?.content || "No response content.";
-      addBubble("assistant", reply);
+      renderAssistantReply(typingBubble, reply);
       return;
     }
 
     if (streamToggleEl.checked) {
-      const bubble = addBubble("assistant", "");
+      typingBubble.className = "bubble assistant";
+      typingBubble.textContent = "";
       let accum = "";
       await sendChatStream(text, (delta) => {
         accum = accum ? `${accum} ${delta}` : delta;
-        bubble.textContent = accum;
+        typingBubble.textContent = accum;
         messagesEl.scrollTop = messagesEl.scrollHeight;
       });
-      if (!bubble.textContent.trim()) {
-        bubble.textContent = "No response content.";
+      if (!typingBubble.textContent.trim()) {
+        typingBubble.textContent = "No response content.";
+      } else {
+        renderAssistantReply(typingBubble, typingBubble.textContent);
       }
       return;
     }
 
     const response = await sendChat(text);
     const reply = response?.message?.content || "No response content.";
-    addBubble("assistant", reply);
+    renderAssistantReply(typingBubble, reply);
   } catch (error) {
+    typingBubble.remove();
     showError(String(error.message || error));
     addBubble("assistant", "I could not process that request. Please try again.");
   } finally {
@@ -485,6 +527,14 @@ streamToggleEl.addEventListener("change", () => {
   if (modeSelectEl.value === "chat") {
     modeHintEl.textContent = `Current mode: V1 Chat. Streaming ${streamToggleEl.checked ? "on" : "off"}.`;
   }
+});
+
+quickPromptEls.forEach((el) => {
+  el.addEventListener("click", () => {
+    const prompt = el.getAttribute("data-prompt") || "";
+    messageInputEl.value = prompt;
+    messageInputEl.focus();
+  });
 });
 
 updateStatus();
