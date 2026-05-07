@@ -11,6 +11,7 @@ A production-oriented, tenant-aware chatbot backend built with FastAPI. The serv
 - Per-tenant runtime tuning (response style, recommendation depth, V2 overrides)
 - Domain-aware guardrails and classification (12-domain taxonomy) for scoped responses
 - Website preset automation (predefined domains/sources) with tenant-level auto-resolution
+- Role-aware policy enforcement (admin vs user) from JWT auth context
 - Built-in rate limiting, metrics, and request traceability (`X-Request-Id`)
 
 ## API Surface
@@ -197,6 +198,12 @@ Run production smoke checks:
 PYTHONPATH=src .venv/bin/python scripts/smoke_test_production_readiness.py
 ```
 
+Run role-awareness regressions:
+
+```bash
+PYTHONPATH=src .venv/bin/pytest -q tests/test_regression_suite.py -k "website_improvement or spoof"
+```
+
 ## Error Handling Contract
 
 Error responses are normalized across endpoints as:
@@ -216,6 +223,15 @@ Notes:
 
 - `retry_after_ms` is present for rate-limited responses (`429`) when applicable.
 - Common mappings: `401 -> UNAUTHORIZED`, `403 -> FORBIDDEN`, `422 -> INVALID_REQUEST`, `429 -> RATE_LIMIT_EXCEEDED`, `500 -> INTERNAL_ERROR`.
+
+## Role-Aware Behavior (User vs Admin)
+
+- Role is enforced from validated JWT (`auth.role`), not from client payload fields.
+- Non-admin users are blocked from website-improvement/audit guidance in both V1 and V2.
+- Spoofed payload fields are ignored (for example `user_role: "admin"` in `/v2/research` or `metadata.auth_role: "admin"` in `/v1/chat`).
+- Expected non-admin behavior for website-improvement prompts:
+  - Status remains `200` with safe informational guidance.
+  - Warning includes `admin_only_website_improvement`.
 
 ## Documentation
 
