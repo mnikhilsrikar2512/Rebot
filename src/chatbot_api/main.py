@@ -497,7 +497,11 @@ def chat(
             provider = tenant_settings_service.resolve_v2_provider(tenant_id)
             result = external_research_service.research(research_request) if provider == "external" else v2_research_service.research(research_request)
             message = result.summary.strip()
-            if result.recommendations:
+            already_structured = any(
+                marker in message
+                for marker in ["Actions:", "Two practical options:", "Next best options:", "Quick Wins:", "Suggested Next Steps:"]
+            )
+            if result.recommendations and not already_structured:
                 message = f"{message}\n\nActions:\n- " + "\n- ".join(result.recommendations)
             return ChatResponse(
                 session_id=resolved_session_id,

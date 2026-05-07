@@ -46,31 +46,30 @@ def format_recommendation(
     why_fit: str,
     domain: str | None = None,
 ) -> str:
-    o1_name, o1_pros, o1_limit = option_1
-    o2_name, o2_pros, o2_limit = option_2
-    return "\n".join(
-        [
-            _context_line(domain),
-            "",
-            "Your Goal:",
-            f"- {goal}",
-            "",
-            "Options:",
-            "Option 1:",
-            f"- Description: {o1_name}",
-            f"- Pros: {o1_pros}",
-            f"- Limitation: {o1_limit}",
-            "Option 2:",
-            f"- Description: {o2_name}",
-            f"- Pros: {o2_pros}",
-            f"- Limitation: {o2_limit}",
-            "",
-            "Suggested Starting Option:",
-            f"- You might start with: {final_recommendation}",
-            f"- Why this may fit: {why_fit}",
-            "- If you prefer, I can suggest a lower-effort or lower-risk alternative.",
-        ]
-    )
+    o1_name, _, _ = option_1
+    o2_name, _, _ = option_2
+    goal_text = (goal or "").strip().lower()
+
+    if any(term in goal_text for term in ["compare", "last month", "month over month", "trend"]):
+        intro = "Based on your month-over-month pattern, here are the most useful corrections:"
+    elif any(term in goal_text for term in ["cut", "overspend", "reduce", "save"]):
+        intro = "Here are the highest-impact corrections for reducing spend now:"
+    else:
+        intro = "Here are the most relevant corrections for your request:"
+
+    options: list[str] = []
+    seen: set[str] = set()
+    for item in [final_recommendation, o1_name, o2_name]:
+        key = item.strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        options.append(item.strip())
+
+    lines = [intro]
+    for item in options[:3]:
+        lines.append(f"- {item}")
+    return "\n".join(lines)
 
 
 def format_betterment_plan(

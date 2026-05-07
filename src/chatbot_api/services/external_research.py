@@ -116,18 +116,7 @@ class ExternalResearchService:
 
     @staticmethod
     def _quality_gate(items: list[str]) -> list[str]:
-        output: list[str] = []
-        for item in items:
-            text = item.strip()
-            lowered = text.lower()
-            has_time = any(term in lowered for term in ["day", "week", "month", "daily", "weekly", "within"])
-            has_metric = any(term in lowered for term in ["%", "score", "rate", "target", "budget", "spend", "adherence"])
-            if not has_time:
-                text = f"{text} over the next 7 days"
-            if not has_metric:
-                text = f"{text}; track budget adherence %"
-            output.append(text)
-        return output
+        return [item.strip() for item in items if item and item.strip()]
 
     def _validate_source(self, url: str, allowed_domains: list[str], website_url: str | None) -> None:
         parsed = urlparse(url)
@@ -418,6 +407,10 @@ class ExternalResearchService:
             )
 
         if intent == "recommendation":
+            q = request.query.lower()
+            why_fit = "These actions target the highest-friction areas first."
+            if any(term in q for term in ["compare", "last month", "trend", "month over month"]):
+                why_fit = "These are the strongest month-over-month correction points from the current evidence."
             summary = format_recommendation(
                 goal=request.query,
                 option_1=(
@@ -431,7 +424,7 @@ class ExternalResearchService:
                     "May deliver slower improvement.",
                 ),
                 final_recommendation=recommendations[0],
-                why_fit="It fits your current context and pattern best.",
+                why_fit=why_fit,
                 domain=detected_domain,
             )
         elif intent == "improvement":

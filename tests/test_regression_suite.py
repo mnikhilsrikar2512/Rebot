@@ -213,3 +213,59 @@ def test_admin_website_improvement_query_allowed_for_v2() -> None:
     finally:
         settings.enable_v2 = old_v2_enabled
         settings.v2_research_provider = old_v2_provider
+
+
+def test_v2_ignores_user_role_spoof_from_payload() -> None:
+    old_v2_enabled = settings.enable_v2
+    old_v2_provider = settings.v2_research_provider
+    settings.enable_v2 = True
+    settings.v2_research_provider = "skeleton"
+    headers = auth_header("tnt_demo", "usr_alex", role="user")
+    try:
+        response = client.post(
+            "/v2/research",
+            headers=headers,
+            json={
+                "tenant_id": "tnt_demo",
+                "user_id": "usr_alex",
+                "user_role": "admin",
+                "query": "How can I improve this website flow?",
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert "admin users" in payload["summary"].lower()
+        assert "admin_only_website_improvement" in payload.get("warnings", [])
+    finally:
+        settings.enable_v2 = old_v2_enabled
+        settings.v2_research_provider = old_v2_provider
+
+
+def test_v1_auto_route_ignores_metadata_auth_role_spoof() -> None:
+    old_v2_enabled = settings.enable_v2
+    old_v2_provider = settings.v2_research_provider
+    settings.enable_v2 = True
+    settings.v2_research_provider = "skeleton"
+    headers = auth_header("tnt_demo", "usr_alex", role="user")
+    session_id = create_session(headers, "tnt_demo", "usr_alex")
+    try:
+        response = client.post(
+            "/v1/chat",
+            headers=headers,
+            json={
+                "tenant_id": "tnt_demo",
+                "user_id": "usr_alex",
+                "session_id": session_id,
+                "message": {"role": "user", "content": "How can I improve this website flow?"},
+                "stream": False,
+                "metadata": {"auth_role": "admin", "auto_route_v2": True},
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert "admin users" in payload["message"]["content"].lower()
+        assert "admin_only_website_improvement" in payload.get("warnings", [])
+        assert "auto_routed_v2" in payload.get("warnings", [])
+    finally:
+        settings.enable_v2 = old_v2_enabled
+        settings.v2_research_provider = old_v2_provider
