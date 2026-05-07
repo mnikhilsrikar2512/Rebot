@@ -68,7 +68,7 @@ PYTHONPATH=src uvicorn chatbot_api.main:app --reload
 5. Open:
 
 - API docs: `http://127.0.0.1:8000/docs`
-- Frontend tester: `http://127.0.0.1:8000/`
+- API root status: `http://127.0.0.1:8000/`
 - Frontend chatbot: `http://127.0.0.1:8000/chatbot`
 
 ## Instant Website Integration (No Manual Question-Time URL Setup)
@@ -161,10 +161,12 @@ With strict startup validation enabled, the app fails fast on unsafe production 
 To load local SQL test data:
 
 ```bash
-PYTHONPATH=src python scripts/seed_test_db.py
+PYTHONPATH=src .venv/bin/python scripts/seed_test_db.py
 ```
 
-Default test users include admin and standard users under `tnt_demo`.
+Default test users include admin and standard users under `tnt_demo` with multi-month transactions and budget variance for precision testing.
+
+If your SQL Server runs in Docker, verify the actual `sa` password from the container env (`MSSQL_SA_PASSWORD`) and use that value in `CHATBOT_SQLSERVER_PASSWORD`.
 
 ## Useful Scripts
 
@@ -173,13 +175,14 @@ Default test users include admin and standard users under `tnt_demo`.
 - `scripts/export_openapi.py` - export OpenAPI snapshot
 - `scripts/check_openapi_contract.py` - validate OpenAPI snapshot drift
 - `scripts/smoke_test_v2.sh` - smoke test V2 research endpoint
+- `scripts/smoke_test_production_readiness.py` - production readiness smoke checks (indexing + V2 modes + out-of-scope handling)
 
 ## Testing
 
 Run full suite:
 
 ```bash
-pytest
+PYTHONPATH=src .venv/bin/pytest -q
 ```
 
 Run critical API/contract checks:
@@ -187,6 +190,32 @@ Run critical API/contract checks:
 ```bash
 PYTHONPATH=src .venv/bin/pytest -q tests/test_api.py tests/test_regression_suite.py tests/test_v2_research_providers.py tests/test_openapi_contract.py
 ```
+
+Run production smoke checks:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/smoke_test_production_readiness.py
+```
+
+## Error Handling Contract
+
+Error responses are normalized across endpoints as:
+
+```json
+{
+  "error": {
+    "code": "<MACHINE_CODE>",
+    "message": "<human-readable message>",
+    "request_id": "req_<id>",
+    "retry_after_ms": 1234
+  }
+}
+```
+
+Notes:
+
+- `retry_after_ms` is present for rate-limited responses (`429`) when applicable.
+- Common mappings: `401 -> UNAUTHORIZED`, `403 -> FORBIDDEN`, `422 -> INVALID_REQUEST`, `429 -> RATE_LIMIT_EXCEEDED`, `500 -> INTERNAL_ERROR`.
 
 ## Documentation
 
