@@ -151,13 +151,15 @@ def main() -> None:
             ("tnt_demo", "System Admin", "admin@test.local", "admin", "active"),
             ("tnt_demo", "John Doe", "john@test.local", "user", "active"),
             ("tnt_demo", "Jane Smith", "jane@test.local", "user", "active"),
+            ("tnt_demo", "Priya Kapoor", "priya@test.local", "user", "active"),
+            ("tnt_demo", "Arjun Mehta", "arjun@test.local", "user", "active"),
             ("tnt_other", "Other Tenant User", "other@test.local", "user", "active"),
         ],
     )
 
     cur.executemany(
         "INSERT INTO chatbot_tenant_users (tenant_id, user_id) VALUES (?, ?)",
-        [("tnt_demo", 1), ("tnt_demo", 2), ("tnt_demo", 3), ("tnt_other", 4)],
+        [("tnt_demo", 1), ("tnt_demo", 2), ("tnt_demo", 3), ("tnt_demo", 4), ("tnt_demo", 5), ("tnt_other", 6)],
     )
 
     credentials = [
@@ -165,6 +167,8 @@ def main() -> None:
         (2, "User@123", "salt-user-02"),
         (3, "User@123", "salt-user-03"),
         (4, "User@123", "salt-user-04"),
+        (5, "User@123", "salt-user-05"),
+        (6, "User@123", "salt-user-06"),
     ]
     cur.executemany(
         "INSERT INTO chatbot_user_credentials (user_id, password_hash, salt, is_active) VALUES (?, ?, ?, 1)",
@@ -180,24 +184,79 @@ def main() -> None:
             ("Rent", "expense"),
             ("Freelance", "income"),
             ("Transport", "expense"),
+            ("Utilities", "expense"),
+            ("Health", "expense"),
+            ("Entertainment", "expense"),
+            ("Investments", "income"),
         ],
     )
 
     now = datetime.now()
     month_start = datetime(now.year, now.month, 1)
+    prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    prev2_month_start = (prev_month_start - timedelta(days=1)).replace(day=1)
+
     txns = [
+        # John Doe (user_id=2) - healthy with increasing spending pressure
         (2, 1, 60000.0, "Monthly salary", month_start + timedelta(days=1), 0),
         (2, 2, -8500.0, "Dining and takeout", month_start + timedelta(days=3), 0),
         (2, 3, -4200.0, "Shopping", month_start + timedelta(days=6), 0),
         (2, 4, -15000.0, "House rent", month_start + timedelta(days=2), 0),
         (2, 6, -1800.0, "Metro and fuel", month_start + timedelta(days=5), 0),
+        (2, 7, -3200.0, "Electricity and internet", month_start + timedelta(days=9), 0),
+        (2, 9, -2200.0, "Weekend movies and outings", month_start + timedelta(days=10), 0),
+        (2, 10, 5500.0, "Quarterly investment dividend", month_start + timedelta(days=11), 0),
+
+        # Jane Smith (user_id=3) - strong earnings with moderate discretionary spend
         (3, 1, 45000.0, "Monthly salary", month_start + timedelta(days=1), 0),
         (3, 5, 12000.0, "Freelance project", month_start + timedelta(days=4), 0),
         (3, 2, -6200.0, "Food expenses", month_start + timedelta(days=3), 0),
         (3, 3, -2500.0, "Shopping essentials", month_start + timedelta(days=7), 0),
         (3, 6, -1300.0, "Transport", month_start + timedelta(days=8), 0),
+        (3, 8, -1800.0, "Routine health checkup", month_start + timedelta(days=10), 0),
+        (3, 7, -2400.0, "Utility bills", month_start + timedelta(days=11), 0),
+
+        # Priya Kapoor (user_id=4) - high utilization and expense spikes
+        (4, 1, 38000.0, "Monthly salary", month_start + timedelta(days=1), 0),
+        (4, 2, -9100.0, "Dining and groceries", month_start + timedelta(days=2), 0),
+        (4, 4, -13500.0, "Rent", month_start + timedelta(days=2), 0),
+        (4, 3, -4700.0, "Unplanned shopping", month_start + timedelta(days=6), 0),
+        (4, 9, -3600.0, "Concert and subscriptions", month_start + timedelta(days=8), 0),
+        (4, 6, -1700.0, "Cab and commute", month_start + timedelta(days=9), 0),
+
+        # Arjun Mehta (user_id=5) - negative balance scenario
+        (5, 1, 30000.0, "Monthly salary", month_start + timedelta(days=1), 0),
+        (5, 4, -14000.0, "Rent", month_start + timedelta(days=2), 0),
+        (5, 2, -7600.0, "Food and dining", month_start + timedelta(days=4), 0),
+        (5, 3, -6200.0, "Online shopping", month_start + timedelta(days=7), 0),
+        (5, 7, -3900.0, "Utilities", month_start + timedelta(days=9), 0),
+        (5, 8, -2400.0, "Medicines", month_start + timedelta(days=10), 0),
+        (5, 6, -1800.0, "Travel", month_start + timedelta(days=12), 0),
+
+        # Admin baseline (user_id=1)
         (1, 1, 90000.0, "Admin salary", month_start + timedelta(days=1), 0),
         (1, 2, -3000.0, "Team lunch", month_start + timedelta(days=5), 0),
+
+        # Prior month variance for trend-sensitive prompts
+        (2, 1, 60000.0, "Monthly salary", prev_month_start + timedelta(days=1), 0),
+        (2, 4, -15000.0, "House rent", prev_month_start + timedelta(days=2), 0),
+        (2, 2, -7300.0, "Dining and takeout", prev_month_start + timedelta(days=4), 0),
+        (2, 7, -2800.0, "Utilities", prev_month_start + timedelta(days=7), 0),
+        (3, 1, 45000.0, "Monthly salary", prev_month_start + timedelta(days=1), 0),
+        (3, 5, 8000.0, "Freelance project", prev_month_start + timedelta(days=5), 0),
+        (3, 2, -5400.0, "Food expenses", prev_month_start + timedelta(days=4), 0),
+        (4, 1, 38000.0, "Monthly salary", prev_month_start + timedelta(days=1), 0),
+        (4, 3, -5100.0, "Shopping", prev_month_start + timedelta(days=6), 0),
+        (5, 1, 30000.0, "Monthly salary", prev_month_start + timedelta(days=1), 0),
+        (5, 4, -14000.0, "Rent", prev_month_start + timedelta(days=2), 0),
+        (5, 2, -6800.0, "Food and dining", prev_month_start + timedelta(days=4), 0),
+
+        # Two months back baseline
+        (2, 1, 58000.0, "Monthly salary", prev2_month_start + timedelta(days=1), 0),
+        (2, 4, -15000.0, "House rent", prev2_month_start + timedelta(days=2), 0),
+        (3, 1, 44000.0, "Monthly salary", prev2_month_start + timedelta(days=1), 0),
+        (4, 1, 36000.0, "Monthly salary", prev2_month_start + timedelta(days=1), 0),
+        (5, 1, 29000.0, "Monthly salary", prev2_month_start + timedelta(days=1), 0),
     ]
     cur.executemany(
         "INSERT INTO transactions (user_id, category_id, amount, description, date, is_deleted) VALUES (?, ?, ?, ?, ?, ?)",
@@ -209,6 +268,8 @@ def main() -> None:
         [
             (2, None, 32000.0, "monthly", month_start.date(), (month_start + timedelta(days=30)).date()),
             (3, None, 24000.0, "monthly", month_start.date(), (month_start + timedelta(days=30)).date()),
+            (4, None, 28000.0, "monthly", month_start.date(), (month_start + timedelta(days=30)).date()),
+            (5, None, 27000.0, "monthly", month_start.date(), (month_start + timedelta(days=30)).date()),
         ],
     )
 

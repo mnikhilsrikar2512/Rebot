@@ -10,7 +10,9 @@ from fastapi.testclient import TestClient
 
 from chatbot_api.config import settings
 from chatbot_api.main import app
+from chatbot_api.schemas import TenantRuntimeSettingsPatch
 from chatbot_api.services.external_research import _SourceResult, external_research_service
+from chatbot_api.services.tenant_settings import tenant_settings_service
 from chatbot_api.services.website_rag import website_rag_service
 
 
@@ -72,6 +74,16 @@ def main() -> None:
     }
 
     try:
+        tenant_settings_service.update_settings(
+            TenantRuntimeSettingsPatch(
+                tenant_id="tnt_demo",
+                website_url="https://finly.example.com",
+                allowed_domains=["finly.example.com", "docs.finly.example.com", "example.com"],
+                source_urls=["https://example.com/guide"],
+                domain_type_hint="fintech",
+            )
+        )
+
         # 1) Website indexing
         website_rag_service.clear_tenant("tnt_demo")
         response = client.post(
@@ -122,7 +134,7 @@ def main() -> None:
             json={
                 "tenant_id": "tnt_demo",
                 "user_id": "usr_alex",
-                "query": "Research similar websites patterns for better budget dashboard.",
+                "query": "Summarize budget dashboard patterns from these sources.",
                 "sources": [{"url": "https://example.com/guide"}],
                 "max_sources": 2,
                 **ctx,
