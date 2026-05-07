@@ -48,6 +48,8 @@ from chatbot_api.schemas import (
     ToolInvokeRequest,
     ToolsRegisterRequest,
     WebhookRegistration,
+    ResponseMessage,
+    Usage,
 )
 from chatbot_api.services.orchestrator import AdapterRuntimeError, AdminScopeError, TenantScopeError, orchestrator
 from chatbot_api.services.metrics import metrics_store
@@ -57,6 +59,7 @@ from chatbot_api.services.tenant_settings import tenant_settings_service
 from chatbot_api.services.website_rag import website_rag_service
 from chatbot_api.services.website_presets import list_website_presets, resolve_website_preset
 from chatbot_api.services.domain_detector import classify_domain
+from chatbot_api.services.intent_classifier import classify_intent
 from chatbot_api.services.auth_service import auth_service
 from chatbot_api.services.rate_limiter import rate_limiter
 from chatbot_api.services.session_store import session_store
@@ -344,10 +347,12 @@ if FRONTEND_DIR.exists():
 
 
 @app.get("/")
-def frontend() -> FileResponse:
-    if not FRONTEND_DIR.exists():
-        raise HTTPException(status_code=404, detail="Frontend not found")
-    return FileResponse(FRONTEND_DIR / "index.html")
+def root() -> dict[str, str]:
+    return {
+        "service": settings.app_name,
+        "status": "ok",
+        "docs": "/docs",
+    }
 
 
 @app.get("/chatbot")
@@ -477,6 +482,36 @@ def chat(
     request.tenant_id = tenant_id
     request.user_id = user_id
     request.metadata = {**request.metadata, "auth_role": auth.role}
+
+    auto_route_v2 = bool(request.metadata.get("auto_route_v2"))
+    if auto_route_v2 and tenant_settings_service.resolve_v2_enabled(tenant_id):
+        intent = classify_intent(request.message.content)
+        if intent in {"recommendation", "improvement", "audit", "troubleshooting", "research"}:
+            research_request = ResearchRequest(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                user_role=auth.role,
+                query=request.message.content,
+                verbose=request.verbose,
+            )
+            provider = tenant_settings_service.resolve_v2_provider(tenant_id)
+            result = external_research_service.research(research_request) if provider == "external" else v2_research_service.research(research_request)
+            message = result.summary.strip()
+            if result.recommendations:
+                message = f"{message}\n\nActions:\n- " + "\n- ".join(result.recommendations)
+            return ChatResponse(
+                session_id=resolved_session_id,
+                message=ResponseMessage(content=message),
+                confidence_score=result.confidence_score,
+                needs_clarification=False,
+                missing_data_fields=[],
+                usage=Usage(
+                    input_tokens=max(1, len(request.message.content.split())),
+                    output_tokens=max(1, len(message.split())),
+                    model=settings.default_model,
+                ),
+                warnings=[*result.warnings, "auto_routed_v2"],
+            )
     try:
         response = orchestrator.run(request)
         webhook_runtime.dispatch(

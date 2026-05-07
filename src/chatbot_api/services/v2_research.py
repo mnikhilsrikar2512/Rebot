@@ -31,6 +31,7 @@ class V2ResearchService:
 
     def __init__(self) -> None:
         self.adapter = get_adapter()
+        self._recent_actions: dict[tuple[str, str], list[str]] = {}
 
     @staticmethod
     def _is_admin(role: str | None) -> bool:
@@ -61,6 +62,33 @@ class V2ResearchService:
                 continue
             seen.add(key)
             output.append(item.strip())
+        return output
+
+    def _remove_recent_repeats(self, tenant_id: str, user_id: str, items: list[str]) -> list[str]:
+        key = (tenant_id, user_id)
+        prior = set(self._recent_actions.get(key, []))
+        filtered = [item for item in items if self._normalize_text(item) not in prior]
+        return filtered or items
+
+    def _remember_actions(self, tenant_id: str, user_id: str, items: list[str]) -> None:
+        key = (tenant_id, user_id)
+        history = self._recent_actions.get(key, [])
+        history.extend([self._normalize_text(item) for item in items[:3]])
+        self._recent_actions[key] = history[-9:]
+
+    @staticmethod
+    def _quality_gate(items: list[str]) -> list[str]:
+        output: list[str] = []
+        for item in items:
+            text = item.strip()
+            lowered = text.lower()
+            has_time = any(term in lowered for term in ["day", "week", "month", "daily", "weekly", "within"])
+            has_metric = any(term in lowered for term in ["%", "score", "rate", "target", "budget", "spend", "adherence"])
+            if not has_time:
+                text = f"{text} over the next 7 days"
+            if not has_metric:
+                text = f"{text}; track budget adherence %"
+            output.append(text)
         return output
 
     def research(self, request: ResearchRequest) -> ResearchResponse:
@@ -198,6 +226,7 @@ class V2ResearchService:
             recommendations = ["No personalized actions found yet. Add account activity and retry."]
 
         recommendations = self._dedupe_recommendations(recommendations)
+        recommendations = self._remove_recent_repeats(request.tenant_id, request.user_id, recommendations)
         fallback_pool = [
             "Set one weekly spending cap and review progress at the end of the week.",
             "Use category-level alerts so users can catch overspending earlier.",
@@ -210,6 +239,8 @@ class V2ResearchService:
                 break
             if self._normalize_text(fallback) not in {self._normalize_text(item) for item in recommendations}:
                 recommendations.append(fallback)
+        recommendations = self._quality_gate(recommendations)
+        self._remember_actions(request.tenant_id, request.user_id, recommendations)
 
         domain_pattern = {
             "fintech": "Most fintech platforms increase completion with contextual nudges and simple action plans.",

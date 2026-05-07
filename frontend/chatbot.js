@@ -107,13 +107,17 @@ function updateStatus() {
 
 function updateModeUI() {
   const isResearch = modeSelectEl.value === "research";
+  const isAuto = modeSelectEl.value === "auto";
   presetWrapEl.classList.add("is-hidden");
   sourceWrapEl.classList.add("is-hidden");
   sourceListWrapEl.classList.add("is-hidden");
-  streamWrapEl.classList.toggle("is-hidden", isResearch);
+  streamWrapEl.classList.toggle("is-hidden", isResearch || isAuto);
   if (isResearch) {
     streamToggleEl.checked = false;
     modeHintEl.textContent = "Current mode: V2 Research. Website context is auto-applied from predefined domain presets.";
+  } else if (isAuto) {
+    streamToggleEl.checked = false;
+    modeHintEl.textContent = "Current mode: Auto. The API routes complex requests to V2 automatically.";
   } else {
     modeHintEl.textContent = `Current mode: V1 Chat. Streaming ${streamToggleEl.checked ? "on" : "off"}.`;
   }
@@ -243,7 +247,7 @@ async function logout() {
   updateStatus();
 }
 
-async function sendChat(text) {
+async function sendChat(text, autoRouteV2 = false) {
   const response = await fetch("/v1/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -254,6 +258,7 @@ async function sendChat(text) {
       stream: false,
       strict_grounding: true,
       message: { role: "user", content: text },
+      metadata: autoRouteV2 ? { auto_route_v2: true } : {},
     }),
   });
 
@@ -424,6 +429,13 @@ composerEl.addEventListener("submit", async (event) => {
     if (modeSelectEl.value === "research") {
       const data = await sendResearch(text);
       const reply = buildResearchReply(data);
+      addBubble("assistant", reply);
+      return;
+    }
+
+    if (modeSelectEl.value === "auto") {
+      const response = await sendChat(text, true);
+      const reply = response?.message?.content || "No response content.";
       addBubble("assistant", reply);
       return;
     }
